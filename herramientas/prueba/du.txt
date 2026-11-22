@@ -1,0 +1,16 @@
+9805385	/roms/psx/
+7200956	/roms/ports/
+6100341	/roms/dreamcast/
+2904660	/roms/mame2003/
+2401287	/roms/n64/
+1900006	/roms/gba/
+428233	/roms/snes/
+382891	/roms/megadrive/
+324057	/roms/bios/
+264414	/roms/themes/
+187084	/roms/tools/
+115972	/roms/gbc/
+99176	/roms/nes/
+64392	/roms/gb/
+48892	/roms/mastersystem/
+31273	/roms/pico-8/

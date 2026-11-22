@@ -1,0 +1,12 @@
+[Unit]
+Description=Pulso 36: intercambio comprimido en RAM (zram)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/pulso36-zram on
+ExecStop=/usr/local/bin/pulso36-zram off
+
+[Install]
+WantedBy=multi-user.target

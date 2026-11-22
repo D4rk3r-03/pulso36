@@ -1,0 +1,64 @@
+#!/bin/bash
+# Pulso 36 · registro de batería: cada 60 s agrega una línea a <DIR>/registro-AAAA-MM.csv.
+# Lo instala Pulso 36 (Batería → Instalar registro) en /usr/local/bin y lo corre pulso36-registro.service.
+# DIR sale de /etc/default/pulso36-registro (lo escribe Pulso 36 al instalar).
+# Con este registro Pulso 36 calcula su propio porcentaje y los tiempos (el medidor del sistema marca de más al final).
+# La columna «proceso» dice qué se estaba usando en ese minuto: el juego de RetroArch, el port, la app LÖVE o, si no,
+# el programa que más procesador gastó.
+DIR=/roms/ports/pulso36/conf/registro
+[ -r /etc/default/pulso36-registro ] && DIR=$(sed -n 's/^DIR=//p' /etc/default/pulso36-registro | tail -1)
+mkdir -p "$DIR"
+B=""
+for p in /sys/class/power_supply/*; do [ "$(cat "$p/type" 2> /dev/null)" = Battery ] && { B=$p; break; }; done
+[ -n "$B" ] || { echo "pulso36-registro: no hay batería" >&2; exit 1; }
+leer() { cat "$1" 2> /dev/null; }
+cargador() { for p in /sys/class/power_supply/*; do [ "$(leer "$p/type")" != Battery ] && [ "$(leer "$p/online")" = 1 ] && { echo 1; return; }; done; echo 0; }
+declare -A antes
+
+# pid, nombre y tiempo de procesador acumulado; el nombre va entre paréntesis y puede tener espacios
+procesos() {
+  awk '{ l = $0; i = index(l, "("); j = 0
+         for (k = length(l); k > 0; k--) if (substr(l, k, 1) == ")") { j = k; break }
+         split(substr(l, j + 2), g, " ")
+         print $1 "\t" substr(l, i + 1, j - i - 1) "\t" g[12] + g[13] }' /proc/[0-9]*/stat 2> /dev/null
+}
+
+en_uso() {
+  local pid cmd b mejor="" max=0 p c t n
+  while IFS=$'\t' read -r p c t; do
+    n=$(( t - ${antes[$p]:-$t} )); antes[$p]=$t
+    case "$c" in ps|cat|awk|bash|sh|sleep|pgrep|tr|cut|date|sed|pulso36-registr|kworker*|systemd*|ksoftirqd*|rcu_*|mmcqd*|jbd2*|irq*) continue ;; esac
+    if [ "$n" -gt "$max" ]; then max=$n; mejor=$c; fi
+  done < <(procesos)
+  # los ports corren dentro de su carpeta (.../ports/<port>)
+  for p in /proc/[0-9]*; do
+    c=$(readlink "$p/cwd" 2> /dev/null) || continue
+    case "$c" in */ports/PortMaster*) ;; */ports/?*) c=${c##*/ports/}; EN_USO="port:${c%%/*}"; return ;; esac
+  done
+  pid=$(pgrep -x retroarch | head -1)
+  if [ -n "$pid" ]; then   # el último argumento de RetroArch es la ROM
+    cmd=$(tr '\0' '\n' < /proc/$pid/cmdline 2> /dev/null | tail -1)
+    case "$cmd" in -*|"") EN_USO="retroarch" ;; *) b=${cmd##*/}; EN_USO="retroarch:${b%.*}" ;; esac
+    return
+  fi
+  pid=$(pgrep -x love.aarch64 | head -1)
+  if [ -n "$pid" ]; then   # una app LÖVE fuera de ports: el nombre de su carpeta
+    cmd=$(tr '\0' '\n' < /proc/$pid/cmdline 2> /dev/null | tail -1)
+    EN_USO="love:$(basename "$(dirname "$cmd")")"; return
+  fi
+  EN_USO="${mejor:-emulationstatio}"
+}
+
+en_uso   # primera vuelta: solo la foto de referencia
+while true; do
+  sleep 60
+  F="$DIR/registro-$(date +%Y-%m).csv"
+  [ -s "$F" ] || echo "fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso" > "$F"
+  v=$(( $(leer $B/voltage_now || echo 0) / 1000 ))
+  c=$(( $(leer $B/current_now || echo 0) / 1000 ))
+  brillo=$(cat /sys/class/backlight/*/brightness 2> /dev/null | head -1)
+  cpu=$(cut -d' ' -f1 /proc/loadavg)
+  zr=$(awk '$1=="/dev/zram0"{printf "%d", $4/1024}' /proc/swaps)
+  en_uso; p=$(printf "%s" "$EN_USO" | tr ',\n' '; ' | cut -c1-60)
+  echo "$(date '+%F %T'),$(leer $B/status),$(leer $B/capacity),$v,$c,$(cargador),${brillo:-},$cpu,${zr:-0},${p:-}" >> "$F"
+done

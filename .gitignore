@@ -1,0 +1,9 @@
+# ajustes, registro y log de cada consola
+pulso36/conf/
+log.txt
+# respaldos de desarrollo
+*.antes-*
+respaldos-desarrollo/
+# capturas de trabajo (las del README van en docs/)
+capturas/
+capturas-consola/

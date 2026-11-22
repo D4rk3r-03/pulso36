@@ -1,0 +1,11 @@
+[Unit]
+Description=Pulso 36: registro de batería (una línea por minuto)
+After=local-fs.target
+
+[Service]
+ExecStart=/usr/local/bin/pulso36-registro
+Restart=on-failure
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

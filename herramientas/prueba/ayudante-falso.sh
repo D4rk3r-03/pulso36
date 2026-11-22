@@ -1,0 +1,27 @@
+#!/bin/bash
+# Ayudante de mentira para probar en un PC: datos inventados (red «MiWifi», IP de ejemplo).
+cat <<'FIN'
+DISCO=/|5509568|6733940
+DISCO=/roms|41203640|61125120
+DISCO=/boot|31022|112907
+WIFI=wlan0
+SSID=MiWifi
+FREQ=2412
+ENLACE=72.0
+IP=192.168.1.50
+ROUTER=192.168.1.1
+SERVICIOS=000
+REGISTRO=1
+VIGILA=0
+FIN
+[ "$1" = rapido ] && exit 0
+cat <<'FIN'
+COMPLETO=1
+BANDA=
+SUDO=1
+ZRAM=pulso36
+ZRAM_ARRANQUE=1
+ZRAM_TAM=512
+REGISTRO_SERVICIO=pulso36
+SSH_SERVICIO=1
+FIN

@@ -1,0 +1,8 @@
+general|ayudante-falso.sh|raiz|bateria/|espera 4;a;espera 2;x;espera 1;b;a;espera 1;a;espera 2;b;der;a;espera 2;abajo;a;espera 2;arriba;arriba;a;espera 2;b;der;a;espera 2;a;espera 1;a;espera 2;x;espera 1;b;r;espera 2;b;y;espera 2;salir
+general2|ayudante-falso.sh|raiz|bateria/|espera 4;abajo;a;espera 2;a;espera 5;b;der;a;espera 2;a;espera 1;b;abajo;a;espera 1;a;espera 2;abajo;abajo;a;espera 2;abajo;a;espera 2;x;espera 6;b;der;a;espera 3;a;espera 1;b;abajo;abajo;a;espera 1;b;espera 1;salir
+energia|ayudante-falso.sh|raiz|bateria/|espera 4;start;espera 1;a;espera 2;abajo;a;espera 1;b;abajo;a;espera 1;b;abajo;a;espera 1;b;salir
+darkos|ayudante-falso-darkos.sh|raiz|bateria-vacia/|espera 4;a;espera 2;b;der;der;a;espera 2;b;abajo;der;a;espera 2;b;start;espera 1;a;espera 2;salir
+sinzram|ayudante-falso.sh|raiz-sin-zram|bateria-vacia/|espera 4;a;espera 2;b;der;der;a;espera 2;a;espera 1;b;x;espera 1;b;salir
+gestor|ayudante-falso-zram-manager.sh|raiz|bateria-vacia/|espera 4;der;der;a;espera 2;salir
+gestor2|ayudante-falso-darkos.sh|raiz-sin-zram|bateria-vacia/|espera 4;der;der;a;espera 2;salir
+choque|ayudante-falso-choque.sh|raiz-sin-zram|bateria-vacia/|espera 4;der;der;a;espera 2;a;espera 1;b;salir

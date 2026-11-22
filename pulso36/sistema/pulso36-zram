@@ -1,0 +1,28 @@
+#!/bin/bash
+# Pulso 36 · ZRam: intercambio comprimido en RAM sobre zram0. Uso (como root): pulso36-zram on [MB] | off
+# Lo instala Pulso 36 (Memoria → Instalar ZRam) en /usr/local/bin y lo corre pulso36-zram.service al arrancar.
+# Tamaño en /etc/default/pulso36-zram (TAMANO_MB=512). Solo se ofrece si el sistema no trae su propia ZRam.
+CONF=/etc/default/pulso36-zram
+DEV=/dev/zram0
+S=/sys/block/zram0
+apagar() {
+  if grep -q '^/dev/zram0 ' /proc/swaps; then swapoff "$DEV" || exit 1; fi
+  [ -e "$S/reset" ] && echo 1 > "$S/reset"
+}
+case "$1" in
+  on)
+    MB=$(sed -n 's/^TAMANO_MB=\([0-9]*\)$/\1/p' "$CONF" 2> /dev/null | tail -1)
+    MB="${2:-${MB:-512}}"
+    [ -d "$S" ] || modprobe zram num_devices=1 2> /dev/null
+    [ -d "$S" ] || { echo "Este sistema no tiene zram" >&2; exit 1; }
+    apagar
+    algos=$(cat "$S/comp_algorithm" 2> /dev/null)
+    for a in lz4 lzo-rle lzo; do case " $algos " in *" $a "*|*"[$a]"*) echo "$a" > "$S/comp_algorithm"; break ;; esac; done
+    [ -e "$S/max_comp_streams" ] && echo 4 > "$S/max_comp_streams"
+    echo $((MB * 1024 * 1024)) > "$S/disksize"
+    mkswap "$DEV" > /dev/null
+    swapon -p 100 "$DEV"
+    ;;
+  off) apagar ;;
+  *) echo "uso: $0 on [MB] | off" >&2; exit 2 ;;
+esac
