@@ -20,7 +20,7 @@ The app is in English or Spanish: it follows the menu language (see "Settings" t
 |---|---|---|
 | **Dashboard** | A summary of everything in six tiles | Open each screen |
 | **Battery** | Percentage, voltage, current draw, time left or time to full, session time and time since the last charge, a graph of the last full discharge | Install, turn on/off or remove the battery log |
-| **CPU** | Frequency and load per core, temperature, GPU | Pick a governor: Saver, Normal or Maximum (restored on launch) |
+| **CPU** | Frequency and load per core, temperature, GPU | Pick a governor: Saver, Normal or Maximum (restored on launch); GPU and memory follow it |
 | **Memory** | RAM in use and ZRam (compressed swap) | Install, turn on/off, resize or remove ZRam |
 | **Storage** | Free space and what each SD folder takes | Measure again |
 | **Network** | Wi-Fi, signal, IP, live traffic (up/down), step-by-step internet test | Turn on SSH, turn off remote services, lock the current network to 2.4 GHz or set it back to automatic |
@@ -82,7 +82,7 @@ ArkOS and dArkOS). If the console does not allow it, Pulso 36 says so and only s
 
 | Action | What changes | Survives a reboot? | How to undo |
 |---|---|---|---|
-| CPU governor | The governor of the cores | No (Pulso sets it again on launch) | Pick another one |
+| CPU governor | The governor of the cores, GPU and memory (Maximum: at full speed; otherwise on demand) | No (Pulso sets it again on launch) | Pick another one |
 | Install the battery log | Adds `pulso36-registro` to `/usr/local/bin` and `/etc/systemd/system` | Yes | **X** on Battery |
 | Install ZRam | Adds `pulso36-zram` to `/usr/local/bin`, `/etc/systemd/system` and `/etc/default` | Yes | **X** on Memory |
 | Turn on SSH | Starts the SSH service | No | Turn off remote services, or reboot |

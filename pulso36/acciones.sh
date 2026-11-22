@@ -32,6 +32,15 @@ case "$1" in
     disp=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2> /dev/null)
     case " $disp " in *" $2 "*) ;; *) echo "Este sistema no tiene el modo $2"; exit 2 ;; esac
     for p in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do echo "$2" | priv tee "$p" > /dev/null || exit 1; done
+    # La GPU y la memoria siguen al procesador: en máximo, a tope; si no, que suban solo cuando haga falta (como
+    # perfnorm). perfmax las deja a tope al abrir cualquier port; en Pulso eso gastaba un 10 % más (457 → 411 mA en
+    # una RG36H con dArkOS).
+    for d in /sys/class/devfreq/*; do
+      [ -f "$d/governor" ] || continue
+      case "$(basename "$d")" in dmc) normal=dmc_ondemand ;; *gpu*) normal=simple_ondemand ;; *) continue ;; esac
+      [ "$2" = performance ] && q=performance || q=$normal
+      case " $(cat "$d/available_governors" 2> /dev/null) " in *" $q "*) echo "$q" | priv tee "$d/governor" > /dev/null ;; esac
+    done
     echo "Modo del procesador: $2" ;;
 
   zram)     # la ZRam propia de Pulso 36 (solo se ofrece si el sistema no trae otra)

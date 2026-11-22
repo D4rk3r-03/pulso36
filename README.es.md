@@ -19,7 +19,7 @@ del menú (ver «Ajustes» para fijarlo).
 |---|---|---|
 | **Tablero** | Un resumen de todo en seis recuadros | Entrar a cada pantalla |
 | **Batería** | Porcentaje, voltaje, consumo, tiempo que queda o que falta para llenarse, tiempos de la sesión y desde la última carga, la gráfica de la última descarga completa | Instalar, encender o quitar el registro de batería |
-| **Procesador** | Frecuencia y uso de cada núcleo, temperatura, GPU | Elegir el modo: Ahorro, Normal o Máximo (se recuerda al abrir) |
+| **Procesador** | Frecuencia y uso de cada núcleo, temperatura, GPU | Elegir el modo: Ahorro, Normal o Máximo (se recuerda al abrir); la GPU y la memoria lo siguen |
 | **Memoria** | RAM en uso y ZRam (memoria comprimida) | Instalar, encender, cambiar de tamaño o quitar la ZRam |
 | **Almacenamiento** | Espacio libre y qué ocupa cada carpeta de la SD | Volver a medir |
 | **Red** | Wifi, señal, IP, tráfico en vivo (subida y bajada), prueba de internet paso a paso | Encender SSH, apagar los servicios remotos, fijar la red actual a 2,4 GHz o dejarla en automático |
@@ -81,7 +81,7 @@ dArkOS no pide contraseña). Si la consola no lo permite, Pulso 36 lo avisa y so
 
 | Acción | Qué cambia | ¿Sigue al reiniciar? | Cómo deshacerla |
 |---|---|---|---|
-| Modo del procesador | El modo de los núcleos | No (Pulso lo vuelve a poner al abrir) | Elegir otro modo |
+| Modo del procesador | El modo de los núcleos, la GPU y la memoria (Máximo: a tope; si no, según la demanda) | No (Pulso lo vuelve a poner al abrir) | Elegir otro modo |
 | Instalar el registro de batería | Agrega `pulso36-registro` en `/usr/local/bin` y `/etc/systemd/system` | Sí | **X** en Batería |
 | Instalar la ZRam | Agrega `pulso36-zram` en `/usr/local/bin`, `/etc/systemd/system` y `/etc/default` | Sí | **X** en Memoria |
 | Encender SSH | Enciende el servicio SSH | No | Apagar servicios remotos, o reiniciar |
