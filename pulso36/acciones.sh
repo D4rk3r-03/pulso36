@@ -155,7 +155,10 @@ case "$1" in
   energia)  # reiniciar el menú o la consola, apagar, y apagar sola al terminar de cargar
     U=pulso36-apagar-al-cargar
     case "$2" in
-      menu)      priv systemd-run --on-active=2 --unit=pulso36-reiniciar-menu systemctl restart emulationstation > /dev/null 2>&1 \
+      # El menú lanza cada port como «perfmax; port; perfnorm»: reiniciarlo desde aquí corta esa cadena y la GPU y la
+      # memoria quedarían al máximo en el menú. Por eso se corre perfnorm antes, si existe.
+      menu)      priv systemd-run --on-active=2 --unit=pulso36-reiniciar-menu /bin/sh -c \
+                   '[ -x /usr/local/bin/perfnorm ] && /usr/local/bin/perfnorm quiet > /dev/null 2>&1; systemctl restart emulationstation' > /dev/null 2>&1 \
                    && echo "Reiniciando el menú…" ;;
       reiniciar) sync; priv systemd-run --on-active=2 systemctl reboot > /dev/null 2>&1 && echo "Reiniciando la consola…" ;;
       apagar)    sync; priv systemd-run --on-active=2 systemctl poweroff > /dev/null 2>&1 && echo "Apagando la consola…" ;;
