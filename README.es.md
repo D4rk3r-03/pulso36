@@ -7,11 +7,35 @@ Monitor del sistema en pixel art para consolas portátiles con **ArkOS** o **dAr
 los programas abiertos, y permite algunos ajustes rápidos sin salir al menú. En español o en inglés: usa el idioma
 del menú (ver «Ajustes» para fijarlo).
 
-<p>
-  <img src="docs/es-tablero.png" width="32%" alt="Tablero">
-  <img src="docs/es-bateria.png" width="32%" alt="Batería">
-  <img src="docs/es-red.png" width="32%" alt="Red">
+<p align="center">
+  <img src="docs/es-tablero.png" width="75%" alt="Tablero (tema nube)">
 </p>
+
+<details>
+<summary><b>Todas las pantallas (clic para abrir)</b></summary>
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/es-tablero.png" alt="Tablero"><br><sub>Tablero</sub></td>
+    <td align="center"><img src="docs/es-bateria.png" alt="Batería"><br><sub>Batería</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/es-procesador.png" alt="Procesador"><br><sub>Procesador</sub></td>
+    <td align="center"><img src="docs/es-memoria.png" alt="Memoria"><br><sub>Memoria</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/es-almacenamiento.png" alt="Almacenamiento"><br><sub>Almacenamiento</sub></td>
+    <td align="center"><img src="docs/es-red.png" alt="Red"><br><sub>Red</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/es-procesos.png" alt="Procesos"><br><sub>Procesos</sub></td>
+    <td align="center"><img src="docs/es-energia.png" alt="Energía (START)"><br><sub>Energía (START)</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/es-fosforo.png" width="50%" alt="Tema fósforo (Y cambia el tema)"><br><sub>Tema fósforo (Y cambia el tema)</sub></td>
+  </tr>
+</table>
+</details>
 
 ## Qué hace
 
@@ -56,6 +80,9 @@ Probado en: RG36H con ArkOS 2.0 (05312025) y con dArkOSRE (03082026).
 
 1. Copia `Pulso 36.sh` y la carpeta `pulso36/` a la carpeta `ports` de la tarjeta (`roms/ports` o `roms2/ports`).
 2. En el menú: **Ports → Pulso 36** (si no aparece, reinicia el menú o actualiza la lista de juegos).
+3. Opcional, para que tenga imagen y descripción en la lista de Ports: en `ports/gamelist.xml`, dentro de la entrada
+   con `<path>./Pulso 36.sh</path>`, agrega `<image>./pulso36/cover.png</image>` y `<desc>…</desc>`. Hazlo con el menú
+   cerrado (o reinícialo enseguida): EmulationStation reescribe ese archivo al salir.
 
 ## Quitar
 

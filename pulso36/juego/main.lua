@@ -587,7 +587,9 @@ end
 local function leerProcesos()
     if PR.leyendo then return end
     PR.leyendo = true
-    correr("cd /proc && cat [0-9]*/stat 2>/dev/null", function(_, lineas) PR.leyendo = false; procesarProcesos(lineas) end)
+    -- PULSO_PROCESOS (desarrollo): otra orden que imprima líneas como /proc/<pid>/stat, para las capturas
+    correr(os.getenv("PULSO_PROCESOS") or "cd /proc && cat [0-9]*/stat 2>/dev/null",
+        function(_, lineas) PR.leyendo = false; procesarProcesos(lineas) end)
 end
 
 -- ── sonidos ──

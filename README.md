@@ -8,11 +8,35 @@ settings without leaving to the menu.
 
 The app is in English or Spanish: it follows the menu language (see "Settings" to set it).
 
-<p>
-  <img src="docs/en-tablero.png" width="32%" alt="Dashboard">
-  <img src="docs/en-bateria.png" width="32%" alt="Battery">
-  <img src="docs/en-red.png" width="32%" alt="Network">
+<p align="center">
+  <img src="docs/en-tablero.png" width="75%" alt="Dashboard (cloud theme)">
 </p>
+
+<details>
+<summary><b>All screens (click to open)</b></summary>
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/en-tablero.png" alt="Dashboard"><br><sub>Dashboard</sub></td>
+    <td align="center"><img src="docs/en-bateria.png" alt="Battery"><br><sub>Battery</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/en-procesador.png" alt="CPU"><br><sub>CPU</sub></td>
+    <td align="center"><img src="docs/en-memoria.png" alt="Memory"><br><sub>Memory</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/en-almacenamiento.png" alt="Storage"><br><sub>Storage</sub></td>
+    <td align="center"><img src="docs/en-red.png" alt="Network"><br><sub>Network</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/en-procesos.png" alt="Processes"><br><sub>Processes</sub></td>
+    <td align="center"><img src="docs/en-energia.png" alt="Power (START)"><br><sub>Power (START)</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/en-fosforo.png" width="50%" alt="Phosphor theme (Y switches themes)"><br><sub>Phosphor theme (Y switches themes)</sub></td>
+  </tr>
+</table>
+</details>
 
 ## What it does
 
@@ -57,6 +81,9 @@ Tested on: RG36H with ArkOS 2.0 (05312025) and with dArkOSRE (03082026).
 
 1. Copy `Pulso 36.sh` and the `pulso36/` folder into the `ports` folder on the card (`roms/ports` or `roms2/ports`).
 2. In the menu: **Ports → Pulso 36** (if it does not show up, restart the menu or refresh the game list).
+3. Optional, for a picture and a description in the Ports list: add to `ports/gamelist.xml`, inside the entry with
+   `<path>./Pulso 36.sh</path>`, the lines `<image>./pulso36/cover.png</image>` and `<desc>…</desc>`. Do it with the
+   menu closed (or restart it right after): EmulationStation rewrites that file when it exits.
 
 ## Remove
 
