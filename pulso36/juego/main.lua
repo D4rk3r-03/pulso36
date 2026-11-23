@@ -2003,6 +2003,8 @@ function love.run()
     love.load(love.arg.parseGameArguments(arg), arg)
     love.timer.step()
     local paso = 1 / FPS
+    -- desarrollo: PULSO_GRABAR=1 guarda cada cuadro (g00001.png…) con un paso fijo de 1/30 s, para armar un video
+    local grabar, cuadro = os.getenv("PULSO_GRABAR") == "1", 0
     return function()
         local inicio = love.timer.getTime()
         love.event.pump()
@@ -2010,10 +2012,12 @@ function love.run()
             if nombre == "quit" and not (love.quit and love.quit()) then return a or 0 end
             love.handlers[nombre](a, b, c, d, e, f)
         end
-        love.update(love.timer.step())
+        local dt = love.timer.step()
+        love.update(grabar and (1 / 30) or dt)
         if lg.isActive() then
             lg.origin(); lg.clear(lg.getBackgroundColor())
             love.draw()
+            if grabar then cuadro = cuadro + 1; lg.captureScreenshot(string.format("g%05d.png", cuadro)) end
             lg.present()
         end
         local dur = love.timer.getTime() - inicio
