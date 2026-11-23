@@ -75,6 +75,7 @@ M.en = {
     ["cargando"] = "charging", ["descargando"] = "discharging", ["llena"] = "full", ["conectada, sin cargar"] = "plugged in, not charging",
     ["menos de 5 min: conéctala"] = "under 5 min: plug it in",
     ["por voltaje, según tu última descarga"] = "by voltage, from your last discharge",
+    ["por voltaje, según todas tus descargas"] = "by voltage, from all your discharges",
     ["según tu última carga completa"] = "from your last full charge",
     ["con %s mAh y el consumo actual"] = "with %s mAh and the current draw",
     ["la última vez se apagó en %.2f V · "] = "last shutdown at %.2f V · ", ["brillo %s"] = "brightness %s",

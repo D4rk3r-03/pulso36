@@ -44,10 +44,13 @@ for nom, pts in pairs{vieja = viejo, nueva = nuevo} do
   print(string.format("  curva %-5s predice %4.0f mAh  → error %+4.0f mAh (%+.0f %%)", nom, p, p - usado, (p - usado) / usado * 100))
 end
 print("\nA lo largo de esa descarga: gasto real desde el inicio vs. lo que predice cada curva")
-print("Voltaje   real    vieja (error)    nueva (error)")
+print("Voltaje   real    vieja (error)    cosida (error)   perfil (error)")
+local P = CURVA.perfil(antes, tc)
+local fin = math.huge; for k = 1, #d do fin = math.min(fin, d[k].suave) end
+local maxp = 0
 local acum, k0 = 0, 3
 local maxv, maxn = 0, 0
-for _, obj in ipairs{3950, 3900, 3850, 3800, 3750, 3700, 3650, 3600, 3550} do
+for _, obj in ipairs{3950, 3900, 3850, 3800, 3750, 3700, 3650, 3600, 3550} do if obj > fin then
   local u = 0
   for k = 2, #d do
     local dt = d[k].t - d[k-1].t; if dt > 0 and dt < 1800 then u = u + d[k-1].ma * dt / 3600 end
@@ -55,7 +58,8 @@ for _, obj in ipairs{3950, 3900, 3850, 3800, 3750, 3700, 3650, 3600, 3550} do
   end
   local pv = restaTotal(viejo, v0) - restaTotal(viejo, obj)
   local pn = restaTotal(nuevo, v0) - restaTotal(nuevo, obj)
-  maxv, maxn = math.max(maxv, math.abs(pv-u)), math.max(maxn, math.abs(pn-u))
-  print(string.format("%.2f V  %5.0f   %5.0f (%+4.0f)    %5.0f (%+4.0f)", obj/1000, u, pv, pv-u, pn, pn-u))
-end
-print(string.format("Error máximo: vieja %.0f mAh (%.0f %% de la batería) · nueva %.0f mAh (%.0f %%)", maxv, maxv/CAP*100, maxn, maxn/CAP*100))
+  local pp = CURVA.restaPerfil(P, v0) - CURVA.restaPerfil(P, obj)
+  maxv, maxn, maxp = math.max(maxv, math.abs(pv-u)), math.max(maxn, math.abs(pn-u)), math.max(maxp, math.abs(pp-u))
+  print(string.format("%.2f V  %5.0f   %5.0f (%+4.0f)    %5.0f (%+4.0f)    %5.0f (%+4.0f)", obj/1000, u, pv, pv-u, pn, pn-u, pp, pp-u))
+end end
+print(string.format("Error máximo: vieja %.0f mAh (%.0f %%) · cosida %.0f mAh (%.0f %%) · perfil %.0f mAh (%.0f %%) · carga útil del perfil %.0f mAh", maxv, maxv/CAP*100, maxn, maxn/CAP*100, maxp, maxp/CAP*100, P.total))

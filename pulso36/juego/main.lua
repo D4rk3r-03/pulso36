@@ -296,8 +296,10 @@ end
 local leerCurvas   -- se define con la pantalla Batería
 local consumo, volt = {}, {}
 local curva, curvaCarga    -- nil = sin leer; false = no hay en el registro
+local perfil               -- perfil histórico de la batería (curva.lua): nil si aún no hay datos suficientes
 local function limitar01(x) return x < 0 and 0 or (x > 1 and 1 or x) end
 local function restaPorVoltaje(mv)
+    if perfil then return CURVA.restaPerfil(perfil, mv) end   -- todas las descargas: lo más preciso
     local b = curva and curva.puntos
     if not b then return nil end
     if mv >= b[1].suave then   -- más arriba que donde empezó esa descarga: se completa hasta 4,15 V
@@ -374,8 +376,8 @@ local function actualizarBateria()
     if D.estado == "Discharging" and prom < -40 then
         local mah = restaPorVoltaje(mv)
         if mah then
-            D.pct = math.floor(limitar01(mah / CAPACIDAD) * 100 + 0.5)
-            D.que, D.min, D.por = "quedan", mah / -prom * 60, "voltaje"
+            D.pct = math.floor(limitar01(mah / (perfil and perfil.total or CAPACIDAD)) * 100 + 0.5)
+            D.que, D.min, D.por = "quedan", mah / -prom * 60, perfil and "perfil" or "voltaje"
         else
             D.pct = D.pctMedidor
             D.que, D.min = "quedan", D.pct / 100 * CAPACIDAD / -prom * 60
@@ -1010,6 +1012,7 @@ function leerCurvas()
         end
     end
     -- la descarga de referencia (completa y, si hace falta, cosida con otras más altas): ver curva.lua
+    perfil = CURVA.perfil(bloques, os.time())
     local base, pts, cosidas = CURVA.descarga(bloques, os.time())
     if base then
         local min, bajo35 = 0, nil   -- tiempos de la descarga completa real (la base), no de la cosida
@@ -1040,7 +1043,7 @@ function E.bateria.dibujar()
     if que == "quedan" and min < 5 then lg.print(T"menos de 5 min: conéctala", 32, 196)
     else lg.print(que and textoQue(que, min) or T"calculando…", 32, 196) end
     lg.setFont(F.chica); color(C.tenue)
-    lg.print(por == "voltaje" and T"por voltaje, según tu última descarga" or por == "carga" and T"según tu última carga completa" or T("con %s mAh y el consumo actual", math.floor(CAPACIDAD + 0.5)), 32, 220)
+    lg.print(por == "perfil" and T"por voltaje, según todas tus descargas" or por == "voltaje" and T"por voltaje, según tu última descarga" or por == "carga" and T"según tu última carga completa" or T("con %s mAh y el consumo actual", math.floor(CAPACIDAD + 0.5)), 32, 220)
     local fin = curva and curva.fin
     lg.print((fin and coma(string.format(T"la última vez se apagó en %.2f V · ", fin / 1000)) or "")
         .. T("brillo %s", D.brillo and (math.floor(D.brillo * 100 + 0.5) .. "%") or "—"), 32, 238)

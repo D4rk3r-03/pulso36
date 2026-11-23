@@ -85,4 +85,66 @@ function M.descarga(bloques, ahora, soloUltima)
     return base, pts, cosidas
 end
 
+-- Perfil histórico (idea de D4rk3r, 2026-11-23): en vez de una sola descarga, todas las del registro, también las
+-- incompletas. Para cada franja de 10 mV se anotan los mAh que se gastaron mientras el voltaje (suavizado y sin volver
+-- a subir) estaba en ella; se promedia entre todas las descargas que cruzaron la franja entera, y las recientes pesan
+-- más (el peso se reduce a la mitad cada 30 días), así el perfil sigue a la batería si envejece. Lo que queda a un
+-- voltaje es la suma de las franjas de abajo. El total es la carga útil medida de la batería.
+-- Prueba a ciegas con registros reales: error máximo 1–6 % (la última descarga sola: 7–8 %).
+M.FRANJA, M.VIDA = 10, 30 * 86400
+
+function M.perfil(bloques, ahora)
+    local suma, peso = {}, {}
+    for _, b in ipairs(bloques) do
+        if #b >= M.MIN_FILAS then
+            suavizar(b)
+            local w = 0.5 ^ ((ahora - b[#b].t) / M.VIDA)
+            local m, acum, franjas = math.huge, {}, {}
+            for k = 2, #b do
+                local dt = b[k].t - b[k - 1].t
+                m = math.min(m, b[k - 1].suave)
+                if dt > 0 and dt < 1800 then
+                    local f = math.floor(m / M.FRANJA)
+                    if not acum[f] then acum[f] = 0; franjas[#franjas + 1] = f end
+                    acum[f] = acum[f] + b[k - 1].ma * dt / 3600
+                end
+            end
+            table.sort(franjas)
+            for i = 2, #franjas - 1 do   -- sin la primera ni la última: esas la descarga no las cruzó enteras
+                local f = franjas[i]
+                suma[f] = (suma[f] or 0) + acum[f] * w; peso[f] = (peso[f] or 0) + w
+            end
+        end
+    end
+    local bajo, alto = math.huge, -math.huge
+    for f in pairs(suma) do bajo, alto = math.min(bajo, f), math.max(alto, f) end
+    -- hace falta que llegue abajo (una descarga hasta el apagado) y arriba (casi llena)
+    if bajo > 3450 / M.FRANJA or alto < 4000 / M.FRANJA then return nil end
+    local P, total = {bajo = bajo, alto = alto, mah = {}}, 0
+    for f = bajo, alto do   -- una franja sin datos entre dos con datos: el promedio de sus vecinas más cercanas
+        if peso[f] then P.mah[f] = suma[f] / peso[f]
+        else
+            local a, c = f - 1, f + 1
+            while not peso[a] do a = a - 1 end
+            while not peso[c] do c = c + 1 end
+            P.mah[f] = (suma[a] / peso[a] * (c - f) + suma[c] / peso[c] * (f - a)) / (c - a)
+        end
+        total = total + P.mah[f]
+    end
+    P.total = total
+    return P
+end
+
+-- mAh que quedan a ese voltaje según el perfil (0 abajo del todo, el total arriba del todo)
+function M.restaPerfil(P, mv)
+    local x = mv / M.FRANJA
+    if x <= P.bajo then return 0 end
+    local r = 0
+    for f = P.bajo, P.alto do
+        if x >= f + 1 then r = r + P.mah[f]
+        else r = r + P.mah[f] * (x - f); break end
+    end
+    return r
+end
+
 return M
