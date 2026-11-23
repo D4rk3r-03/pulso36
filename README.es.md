@@ -37,6 +37,29 @@ del menú (ver «Ajustes» para fijarlo).
 </table>
 </details>
 
+## Cómo lo uso
+
+**Para trastear y probar en la consola**
+
+- **Medir cuánto gasta cada juego o emulador.** El registro de batería anota cada minuto la corriente y lo que está
+  abierto. De ahí salieron los
+  [ajustes medidos de dArkOS para la R36H](https://github.com/D4rk3r-03/r36h-darkos-tweaks): de fábrica, el procesador y
+  la GPU van al máximo incluso en juegos livianos.
+- **Ver qué hace de verdad un cambio.** Después de una prueba, Pulso 36 muestra el gobernador, la frecuencia de cada
+  núcleo, el estado de la GPU y la memoria y la temperatura, sin SSH.
+- **Limpiar después de un port.** Si algo se cierra mal, Procesos muestra lo que sigue corriendo (un `gptokeyb` que
+  quedó suelto, por ejemplo) y permite cerrarlo.
+- **Acceso rápido para instalar cosas.** Enciende SSH para copiar archivos y apaga los servicios remotos al terminar.
+- **Diagnosticar la red.** La prueba de internet paso a paso distingue si falla el Wifi, la IP, el DNS o internet. Sirve
+  con el hotspot del teléfono, donde el ping puede fallar aunque internet funcione.
+
+**Para el uso diario**
+
+- **Un porcentaje de batería confiable,** y avisos cuando quedan unos 30 y 10 minutos, para que no se corte una
+  partida sin guardar.
+- **Apagar al terminar de cargar,** para que la consola no pase la noche en el cargador.
+- **Ver qué se come la batería** y pasar a un gobernador más liviano.
+
 ## Qué hace
 
 | Pantalla | Qué muestra | Qué se puede hacer |

@@ -38,6 +38,28 @@ The app is in English or Spanish: it follows the menu language (see "Settings" t
 </table>
 </details>
 
+## How I use it
+
+**For tinkering and testing on the device**
+
+- **Measuring battery drain per game or emulator.** The battery log records current draw and what is running every
+  minute. It was the starting point for the measured
+  [dArkOS tweaks for the R36H](https://github.com/D4rk3r-03/r36h-darkos-tweaks): stock settings run the CPU and GPU at
+  full speed even in light games.
+- **Checking what a change really does.** After a test, open Pulso 36 to see the CPU governor, per-core frequency,
+  GPU and memory state and temperature, without SSH.
+- **Cleaning up after a port.** When something closes badly, Processes shows what is still running (a leftover
+  `gptokeyb`, for example) and lets you close it.
+- **Quick access for deploying.** Turn SSH on to copy files, then turn remote services off when done.
+- **Network debugging.** The step-by-step internet test tells Wi-Fi, IP, DNS and internet problems apart. Useful on a
+  phone hotspot, where ping can fail even though internet works.
+
+**For everyday use**
+
+- **A battery percentage you can trust,** plus warnings at about 30 and 10 minutes left, so a save is not cut off.
+- **Power off when charging finishes,** so the console does not sit on the charger all night.
+- **See what is eating your battery** and switch to a lighter governor.
+
 ## What it does
 
 | Screen | Shows | Actions |
