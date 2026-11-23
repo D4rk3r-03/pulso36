@@ -9,6 +9,7 @@ local W, H = 640, 480
 -- (ajustes y log). Sin lanzador, la carpeta del port es la que contiene juego/. En un PC las rutas se cambian
 -- por variables de entorno para probar (herramientas/capturas.sh).
 local function conBarra(r) return r:sub(-1) == "/" and r or (r .. "/") end
+local CURVA = require("curva")   -- curva de descarga de referencia (cosida)
 local function citar(s) return "'" .. s:gsub("'", "'\\''") .. "'" end   -- para el shell, con espacios y comillas
 local RAIZ = os.getenv("PULSO_RAIZ") or ""
 local CASA = conBarra(os.getenv("PULSO_CASA") or ((love.filesystem.getSource():gsub("/juego/?$", "")) .. "/"))
@@ -1008,33 +1009,19 @@ function leerCurvas()
             break
         end
     end
-    for i = #bloques, 1, -1 do
-        local b = bloques[i]
-        local terminada = b.cerrada or (#b > 0 and os.time() - b[#b].t > 15 * 60)
-        -- solo una descarga que acabó con la consola apagándose sola (< 3,42 V): si se conectó el cargador antes
-        -- (p. ej. a 3,53 V), haría creer que la batería se acaba a ese voltaje
-        if #b >= 20 and terminada and b[#b].mv < 3420 then
-            b[#b].resta = 0
-            for k = #b - 1, 1, -1 do
-                local dt = b[k + 1].t - b[k].t
-                b[k].resta = b[k + 1].resta + (dt < 1800 and b[k].ma * dt / 3600 or 0)
-            end
-            for k = 1, #b do   -- voltaje suavizado (5 puntos): el de un minuto suelto salta con la carga
-                local s, n = 0, 0
-                for j = math.max(1, k - 2), math.min(#b, k + 2) do s = s + b[j].mv; n = n + 1 end
-                b[k].suave = s / n
-            end
-            local min, bajo35 = 0, nil
-            for k = 2, #b do
-                local dt = b[k].t - b[k - 1].t
-                if dt < 30 * 60 then min = min + dt / 60 end      -- los ratos apagada no cuentan
-                if not bajo35 and b[k].mv < 3500 then bajo35 = k end
-            end
-            local extra = 0
-            if bajo35 then for k = bajo35 + 1, #b do local dt = b[k].t - b[k - 1].t; if dt < 1800 then extra = extra + dt / 60 end end end
-            return {puntos = b, minutos = min, extra = extra, desde = fechaCorta(b[1].t), fin = b[#b].mv,
-                    inicio = b[1].mv, termino = fechaCorta(b[#b].t)}, carga
+    -- la descarga de referencia (completa y, si hace falta, cosida con otras más altas): ver curva.lua
+    local base, pts, cosidas = CURVA.descarga(bloques, os.time())
+    if base then
+        local min, bajo35 = 0, nil   -- tiempos de la descarga completa real (la base), no de la cosida
+        for k = 2, #base do
+            local dt = base[k].t - base[k - 1].t
+            if dt < 30 * 60 then min = min + dt / 60 end      -- los ratos apagada no cuentan
+            if not bajo35 and base[k].mv < 3500 then bajo35 = k end
         end
+        local extra = 0
+        if bajo35 then for k = bajo35 + 1, #base do local dt = base[k].t - base[k - 1].t; if dt < 1800 then extra = extra + dt / 60 end end end
+        return {puntos = pts, grafica = base, cosidas = cosidas, minutos = min, extra = extra, desde = fechaCorta(base[1].t), fin = base[#base].mv,
+                inicio = base[1].mv, termino = fechaCorta(base[#base].t)}, carga
     end
     return nil, carga
 end
@@ -1095,14 +1082,14 @@ function E.bateria.dibujar()
     panel(16, 370, 608, 72, T"ÚLTIMA DESCARGA COMPLETA")
     if d then
         local x0, y0, w0, h0 = 76, 398, 532, 38     -- a la izquierda, la columna de 4,2 V y 3,4 V
-        -- eje x = tiempo encendida (los ratos apagada no ocupan lugar)
+        -- se dibuja la descarga completa real (d.grafica), no la curva cosida que se usa para estimar
         -- eje x = tiempo encendida: una pausa (más de 2 min sin filas: apagada o suspendida) no ocupa lugar. Las de más
         -- de 5 min se marcan con una raya punteada y su duración arriba (las de más de 1 h, más marcadas); las que
         -- quedan a menos de 8 px se juntan en una.
         if not d.on then
             d.on, d.cortes = {0}, {}
-            for k = 2, #d.puntos do
-                local dt = d.puntos[k].t - d.puntos[k - 1].t
+            for k = 2, #d.grafica do
+                local dt = d.grafica[k].t - d.grafica[k - 1].t
                 if dt > 120 then d.on[k] = d.on[k - 1]; if dt > 300 then d.cortes[#d.cortes + 1] = {k = k, dur = dt} end
                 else d.on[k] = d.on[k - 1] + dt end
             end
@@ -1131,7 +1118,7 @@ function E.bateria.dibujar()
             end
             i = i + 1
         end
-        for k, p in ipairs(d.puntos) do
+        for k, p in ipairs(d.grafica) do
             color(p.mv < 3500 and C.oro or C.acento); px(math.floor(xv(k) / 2) * 2, math.floor(yv(p.mv) / 2) * 2, 2, 2)
         end
         lg.setFont(F.chica); color(C.tenue); lg.print(T"4,2 V", 32, yv(4200) - 6)
