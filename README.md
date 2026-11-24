@@ -208,5 +208,5 @@ test bench and records the drawn texts, to compare two versions.
 
 ## Credits
 
-- Code: D4rk3r-03 · Claudio. [MIT](LICENSE) license.
+- Code: D4rk3r-03 · Claudio 🐾. [MIT](LICENSE) license.
 - Font: Pixel Operator, public domain (CC0); see `pulso36/juego/fuentes/PixelOperator-LICENSE.txt`.

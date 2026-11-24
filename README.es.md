@@ -208,5 +208,5 @@ inglés (necesita `luajit`). GitHub Actions la corre en cada subida.
 
 ## Créditos
 
-- Código: D4rk3r-03 · Claudio. Licencia [MIT](LICENSE).
+- Código: D4rk3r-03 · Claudio 🐾. Licencia [MIT](LICENSE).
 - Fuente: Pixel Operator, de dominio público (CC0); ver `pulso36/juego/fuentes/PixelOperator-LICENSE.txt`.
