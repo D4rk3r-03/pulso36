@@ -201,6 +201,9 @@ do   -- límites del procesador (no cambian)
     for f in disp:gmatch("%d+") do f = tonumber(f) / 1000; mn, mx = math.min(mn, f), math.max(mx, f) end
     D.minf = num(CPU .. "0/cpufreq/cpuinfo_min_freq") and num(CPU .. "0/cpufreq/cpuinfo_min_freq") / 1000 or (mn < math.huge and mn or 400)
     D.maxf = mx > 0 and mx or (num(CPU .. "0/cpufreq/cpuinfo_max_freq") or 1512000) / 1000
+    -- el tope que el sistema deja usar (arkos4clone: el chip ofrece 1296 pero lo limita a 1248): la escala llega ahí
+    local tope = (num(CPU .. "0/cpufreq/scaling_max_freq") or 0) / 1000
+    if tope > 0 and tope < D.maxf and tope > (mn < math.huge and mn or 0) then D.maxf = tope end
     D.fpiso = mn < math.huge and mn or D.minf   -- el escalón más bajo que de verdad usa (en la RG36H con dArkOS, 1008)
     if D.fpiso >= D.maxf then D.fpiso = D.minf end
     local g = GPU and texto(GPU .. "available_frequencies") or ""
