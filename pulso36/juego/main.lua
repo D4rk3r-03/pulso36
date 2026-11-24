@@ -247,6 +247,9 @@ local function leerSensores()
     D.estado = texto(B .. "status") or "?"
     D.cargador = false
     for _, r in ipairs(CARGADORES) do if num(r) == 1 then D.cargador = true end end
+    -- el RK817 sigue diciendo «Full» después de desenchufar hasta que su % baja de 100 (2026-11-24: 4005 mV y
+    -- −551 mA marcando Full): sin cargador es una descarga
+    if D.estado == "Full" and not D.cargador then D.estado = "Discharging" end
     empujar(hist.volt, D.mv, 180)
     -- memoria y ZRam
     local mem = leer("/proc/meminfo") or ""
@@ -974,8 +977,9 @@ function leerCurvas()
     local bloques, actual, cargas, actualC = {}, nil, {}, nil
     local finCarga, filasDesde, mvUltima = nil, {}, nil   -- última fila cargando y las de después («desde la carga»)
     for l in f:lines() do
-        local fecha, estado, pct, mv, ma = l:match("^(%d+%-%d+%-%d+ %d+:%d+:%d+),([^,]+),(%d+),(%d+),(%-?%d+)")
+        local fecha, estado, pct, mv, ma, carg = l:match("^(%d+%-%d+%-%d+ %d+:%d+:%d+),([^,]+),(%d+),(%d+),(%-?%d+),?(%d*)")
         if fecha then
+            if estado == "Full" and carg == "0" then estado = "Discharging" end   -- «Full» sin cargador (ver arriba)
             local y, mo, d, h, mi, s = fecha:match("(%d+)%-(%d+)%-(%d+) (%d+):(%d+):(%d+)")
             local t = os.time({year = y, month = mo, day = d, hour = h, min = mi, sec = s})
             if estado == "Charging" or estado == "Full" then finCarga, filasDesde = t, {}
