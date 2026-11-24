@@ -297,6 +297,8 @@ local leerCurvas   -- se define con la pantalla Batería
 local consumo, volt = {}, {}
 local curva, curvaCarga    -- nil = sin leer; false = no hay en el registro
 local perfil               -- perfil histórico de la batería (curva.lua): nil si aún no hay datos suficientes
+local cargaActual          -- carga en curso según el registro: {habia, entro, t} (mAh y hora de la última fila)
+local consumoUltima        -- mA promedio de la última descarga larga del registro
 local function limitar01(x) return x < 0 and 0 or (x > 1 and 1 or x) end
 local function restaPorVoltaje(mv)
     if perfil then return CURVA.restaPerfil(perfil, mv) end   -- todas las descargas: lo más preciso
@@ -386,7 +388,15 @@ local function actualizarBateria()
         D.pct, D.que, D.min = 100, nil, nil      -- llena de verdad
     elseif D.cargador and prom > 40 then
         local falta, min = faltaPorCarga(mv, prom)
-        if falta then
+        if cargaActual then
+            -- lo que quedaba al enchufar + lo que ha entrado, sobre la capacidad útil medida (la misma escala que al
+            -- descargar); se sigue sumando cada segundo lo que entra con la app abierta
+            local ahora = os.time()
+            if ahora > cargaActual.t then cargaActual.entro = cargaActual.entro + prom * (ahora - cargaActual.t) / 3600; cargaActual.t = ahora end
+            local hay = cargaActual.habia + cargaActual.entro
+            D.pct = math.min(99, math.floor(limitar01(hay / perfil.total) * 100 + 0.5))
+            D.que, D.min, D.por = "llena en", min or math.max(0, perfil.total - hay) / prom * 60, "contador"
+        elseif falta then
             D.pct = math.floor(limitar01(1 - falta / CAPACIDAD) * 100 + 0.5)
             D.que, D.min, D.por = "llena en", min, "carga"
         else
@@ -1013,6 +1023,30 @@ function leerCurvas()
     end
     -- la descarga de referencia (completa y, si hace falta, cosida con otras más altas): ver curva.lua
     perfil = CURVA.perfil(bloques, os.time())
+    -- carga en curso (las últimas filas del registro son de carga): lo que quedaba al enchufar, según el perfil y el
+    -- voltaje de la última fila descargando, más los mAh que entraron desde entonces. Solo si se enchufó con la
+    -- consola encendida y no hubo ratos apagada cargando (lo que entra con la consola apagada no queda registrado).
+    cargaActual = nil
+    -- consumo de la última descarga larga (para «una carga dura» mientras carga: la corriente de ahora es la que entra)
+    consumoUltima = nil
+    for i = #bloques, 1, -1 do
+        local b = bloques[i]
+        if #b >= 20 then
+            local s, n = 0, 0
+            for k = 2, #b do local dt = b[k].t - b[k - 1].t; if dt > 0 and dt < 300 then s = s + b[k - 1].ma * dt; n = n + dt end end
+            if n > 0 then consumoUltima = s / n; break end
+        end
+    end
+    local ultimaD = bloques[#bloques] and bloques[#bloques][#bloques[#bloques]]
+    if perfil and actualC and ultimaD and actualC[1].t > ultimaD.t and actualC[1].t - ultimaD.t < 300 then
+        local entro, seguida = 0, true
+        for k = 2, #actualC do
+            local dt = actualC[k].t - actualC[k - 1].t
+            if dt >= 300 then seguida = false; break end
+            entro = entro + actualC[k - 1].ma * dt / 3600
+        end
+        if seguida then cargaActual = {habia = CURVA.restaPerfil(perfil, ultimaD.mv), entro = entro, t = actualC[#actualC].t} end
+    end
     local base, pts, cosidas = CURVA.descarga(bloques, os.time())
     if base then
         local min, bajo35 = 0, nil   -- tiempos de la descarga completa real (la base), no de la cosida
@@ -1043,7 +1077,7 @@ function E.bateria.dibujar()
     if que == "quedan" and min < 5 then lg.print(T"menos de 5 min: conéctala", 32, 196)
     else lg.print(que and textoQue(que, min) or T"calculando…", 32, 196) end
     lg.setFont(F.chica); color(C.tenue)
-    lg.print(por == "perfil" and T"por voltaje, según todas tus descargas" or por == "voltaje" and T"por voltaje, según tu última descarga" or por == "carga" and T"según tu última carga completa" or T("con %s mAh y el consumo actual", math.floor(CAPACIDAD + 0.5)), 32, 220)
+    lg.print(por == "perfil" and T"por voltaje, según todas tus descargas" or por == "voltaje" and T"por voltaje, según tu última descarga" or por == "carga" and T"según tu última carga completa" or por == "contador" and T"lo que quedaba + lo que ha entrado" or T("con %s mAh y el consumo actual", math.floor(CAPACIDAD + 0.5)), 32, 220)
     local fin = curva and curva.fin
     lg.print((fin and coma(string.format(T"la última vez se apagó en %.2f V · ", fin / 1000)) or "")
         .. T("brillo %s", D.brillo and (math.floor(D.brillo * 100 + 0.5) .. "%") or "—"), 32, 238)
@@ -1072,7 +1106,16 @@ function E.bateria.dibujar()
             or (ti.on and {T"DESDE LA CARGA", duracion(ti.on), T"encendida",
                 T("(%s reales, desde %s)", duracion(ti.real), os.date((ti.real or 0) > 1200 and "%d/%m %H:%M" or "%H:%M", ti.desde))})
             or {T"DESDE LA CARGA", "—", D.registro and T"desde la próxima carga" or T"sin registro", ""},
-        d and {T"ÚLTIMA COMPLETA", duracion(d.minutos), coma(string.format(T"de %.2f a %.2f V", d.inicio / 1000, d.fin / 1000)), T("terminó %s", d.termino)}
+        (function()   -- una carga dura: la carga útil del perfil al consumo de ahora (o al de la última descarga)
+            if not perfil then return nil end
+            local descargando = D.estado == "Discharging" and D.ma and D.ma < -40
+            local ma = descargando and -D.ma or consumoUltima
+            if not ma or ma < 40 then return nil end
+            return {T"UNA CARGA DURA", duracion(perfil.total / ma * 60),
+                T("a %d mA, %s", math.floor(ma + 0.5), descargando and T"el consumo de ahora" or T"tu última descarga"),
+                coma(string.format(T"de llena a %.2f V", CURVA.VACIO / 1000))}
+        end)()
+        or d and {T"ÚLTIMA COMPLETA", duracion(d.minutos), coma(string.format(T"de %.2f a %.2f V", d.inicio / 1000, d.fin / 1000)), T("terminó %s", d.termino)}
             or {T"ÚLTIMA COMPLETA", "—", D.registro and T"cuando se apague sola" or T"sin registro", ""},
     }
     for i, c in ipairs(col) do
@@ -1082,8 +1125,46 @@ function E.bateria.dibujar()
         lg.setFont(F.chica); color(C.tenue); lg.print(recortar(F.chica, c[3], 190), cx, 334); lg.print(recortar(F.chica, c[4], 190), cx, 348)
     end
 
-    panel(16, 370, 608, 72, T"ÚLTIMA DESCARGA COMPLETA")
-    if d then
+    panel(16, 370, 608, 72, perfil and T"TU BATERÍA · todas tus descargas" or T"ÚLTIMA DESCARGA COMPLETA")
+    if perfil then
+        -- la curva del perfil: eje x = carga usada (llena a la izquierda, vacía a la derecha), eje y = voltaje
+        -- descargando. El punto claro es donde está ahora (según el porcentaje de Pulso).
+        local x0, y0, w0, h0 = 76, 398, 532, 38
+        -- referencias: llena (arriba del perfil, gastando) y vacía (el voltaje de apagado): el 100 % y el 0 % de Pulso;
+        -- la escala vertical va justo entre las dos
+        local mvLlena, mvVacia = (perfil.alto + 1) * CURVA.FRANJA, perfil.bajo * CURVA.FRANJA
+        local function yv(mv) return y0 + h0 - limitar((mv - mvVacia) / math.max(1, mvLlena - mvVacia), 0, 1) * h0 end
+        local function xr(resta) return x0 + (1 - resta / perfil.total) * w0 end
+        color(C.borde); for xx = x0, x0 + w0, 6 do px(xx, yv(mvLlena), 3, 1) end
+        color(C.alerta, 0.5); for xx = x0, x0 + w0, 6 do px(xx, yv(mvVacia), 3, 1) end
+        local ant
+        for f = perfil.alto + 1, perfil.bajo, -1 do
+            local mv = f * CURVA.FRANJA
+            local p = {x = xr(CURVA.restaPerfil(perfil, mv)), y = yv(mv), mv = mv}
+            if ant then   -- puntos cada 2 px entre una franja y la siguiente
+                local n = math.max(1, math.floor(math.max(math.abs(p.x - ant.x), math.abs(p.y - ant.y)) / 2))
+                for i = 1, n do
+                    local t = i / n
+                    color((ant.mv + (p.mv - ant.mv) * t) < 3500 and C.oro or C.acento)
+                    px(math.floor((ant.x + (p.x - ant.x) * t) / 2) * 2, math.floor((ant.y + (p.y - ant.y) * t) / 2) * 2, 2, 2)
+                end
+            end
+            ant = p
+        end
+        if D.pct then   -- ahora: en la curva, a la altura del porcentaje
+            local resta, mvAhora = perfil.total * limitar(D.pct, 0, 100) / 100, nil
+            for f = perfil.bajo, perfil.alto + 1 do
+                if CURVA.restaPerfil(perfil, f * CURVA.FRANJA) >= resta then mvAhora = f * CURVA.FRANJA; break end
+            end
+            local xa, ya = math.floor(xr(resta) / 2) * 2, math.floor(yv(mvAhora or perfil.alto * CURVA.FRANJA) / 2) * 2
+            color(C.fondo); lg.rectangle("fill", xa - 4, ya - 4, 8, 8)
+            color(C.crema); lg.rectangle("fill", xa - 3, ya - 3, 6, 6)
+        end
+        lg.setFont(F.chica); color(C.tenue); lg.print(coma(string.format("%.2f V", mvLlena / 1000)), 26, yv(mvLlena) - 6)
+        color(C.alerta, 0.8); lg.print(coma(string.format("%.2f V", mvVacia / 1000)), 26, yv(mvVacia) - 8)
+        local info = T("%d mAh útiles · %d descargas", math.floor(perfil.total + 0.5), perfil.descargas)
+        color(C.tenue); lg.print(info, 608 - F.chica:getWidth(info), 378)
+    elseif d then
         local x0, y0, w0, h0 = 76, 398, 532, 38     -- a la izquierda, la columna de 4,2 V y 3,4 V
         -- se dibuja la descarga completa real (d.grafica), no la curva cosida que se usa para estimar
         -- eje x = tiempo encendida: una pausa (más de 2 min sin filas: apagada o suspendida) no ocupa lugar. Las de más

@@ -88,6 +88,11 @@ M.en = {
     ["ÚLTIMA COMPLETA"] = "LAST FULL", ["de %.2f a %.2f V"] = "from %.2f to %.2f V", ["terminó %s"] = "ended %s",
     ["cuando se apague sola"] = "after it shuts down on its own",
     ["ÚLTIMA DESCARGA COMPLETA"] = "LAST FULL DISCHARGE",
+    ["TU BATERÍA · todas tus descargas"] = "YOUR BATTERY · all your discharges",
+    ["%d mAh útiles · %d descargas"] = "%d mAh usable · %d discharges",
+    ["lo que quedaba + lo que ha entrado"] = "what was left + what went in",
+    ["UNA CARGA DURA"] = "A CHARGE LASTS", ["a %d mA, %s"] = "at %d mA, %s", ["el consumo de ahora"] = "current draw",
+    ["tu última descarga"] = "your last discharge", ["de llena a %.2f V"] = "from full to %.2f V",
     ["Sin registro, el porcentaje es el del sistema y puede no ser fiable. A instala el registro de batería."] =
         "No log: the percentage comes from the system and may be wrong. A installs the battery log.",
     ["Sin registro, el porcentaje es el del sistema y puede no ser fiable."] = "No log: the percentage comes from the system and may be wrong.",

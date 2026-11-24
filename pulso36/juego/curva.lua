@@ -92,9 +92,12 @@ end
 -- voltaje es la suma de las franjas de abajo. El total es la carga útil medida de la batería.
 -- Prueba a ciegas con registros reales: error máximo 1–6 % (la última descarga sola: 7–8 %).
 M.FRANJA, M.VIDA = 10, 30 * 86400
+-- Vacío: el voltaje (con la consola gastando) al que se apaga, el mismo en todos los sistemas porque es la misma
+-- batería (D4rk3r, 2026-11-23). Lo que hay por debajo no cuenta como carga útil: 0 % = apagado. PULSO_VACIO lo cambia.
+M.VACIO = tonumber(os.getenv("PULSO_VACIO") or "") or 3300
 
 function M.perfil(bloques, ahora)
-    local suma, peso = {}, {}
+    local suma, peso, usadas = {}, {}, 0
     for _, b in ipairs(bloques) do
         if #b >= M.MIN_FILAS then
             suavizar(b)
@@ -110,6 +113,7 @@ function M.perfil(bloques, ahora)
                 end
             end
             table.sort(franjas)
+            if #franjas > 2 then usadas = usadas + 1 end
             for i = 2, #franjas - 1 do   -- sin la primera ni la última: esas la descarga no las cruzó enteras
                 local f = franjas[i]
                 suma[f] = (suma[f] or 0) + acum[f] * w; peso[f] = (peso[f] or 0) + w
@@ -118,9 +122,10 @@ function M.perfil(bloques, ahora)
     end
     local bajo, alto = math.huge, -math.huge
     for f in pairs(suma) do bajo, alto = math.min(bajo, f), math.max(alto, f) end
+    bajo = math.max(bajo, math.floor(M.VACIO / M.FRANJA))   -- por debajo del vacío no cuenta
     -- hace falta que llegue abajo (una descarga hasta el apagado) y arriba (casi llena)
     if bajo > 3450 / M.FRANJA or alto < 4000 / M.FRANJA then return nil end
-    local P, total = {bajo = bajo, alto = alto, mah = {}}, 0
+    local P, total = {bajo = bajo, alto = alto, mah = {}, descargas = usadas}, 0
     for f = bajo, alto do   -- una franja sin datos entre dos con datos: el promedio de sus vecinas más cercanas
         if peso[f] then P.mah[f] = suma[f] / peso[f]
         else
