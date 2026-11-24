@@ -111,6 +111,14 @@ local function duracion(min)
     if min >= 24 * 60 then return math.floor(min / 1440) .. " d " .. math.floor(min % 1440 / 60) .. " h" end
     return math.floor(min / 60) .. " h " .. (min % 60) .. " min"
 end
+-- fecha y hora corta: «hoy 02:07», «ayer 23:10» o «22/11 14:00»
+local function fechaCorta(t)
+    if not t then return "—" end
+    local dia = os.date("%Y%m%d", t)
+    if dia == os.date("%Y%m%d") then return T("hoy %s", os.date("%H:%M", t)) end
+    if dia == os.date("%Y%m%d", os.time() - 86400) then return T("ayer %s", os.date("%H:%M", t)) end
+    return os.date("%d/%m %H:%M", t)
+end
 
 -- ── lectura de /sys y /proc ──
 -- Los sensores de cada segundo NO se leen en el hilo que dibuja: leer un archivo de /sys o /proc puede quedarse
@@ -1107,8 +1115,8 @@ function E.bateria.dibujar()
     local col = {
         {T"ESTA SESIÓN", duracion(ti.sesion or 0), T("encendida desde %s", os.date("%H:%M", ti.arranque)), ""},
         ti.cargando and {T"DESDE LA CARGA", T"cargando", T"se cuenta al desconectarla", ""}
-            or (ti.on and {T"DESDE LA CARGA", duracion(ti.on), T"encendida",
-                T("(%s reales, desde %s)", duracion(ti.real), os.date((ti.real or 0) > 1200 and "%d/%m %H:%M" or "%H:%M", ti.desde))})
+            or (ti.on and {T"DESDE LA CARGA", duracion(ti.on), T"encendida", "",
+                largo = T("%s reales · desde %s", duracion(ti.real), fechaCorta(ti.desde))})
             or {T"DESDE LA CARGA", "—", D.registro and T"desde la próxima carga" or T"sin registro", ""},
         (function()   -- una carga dura: la carga útil del perfil al consumo de ahora (o al de la última descarga)
             if not perfil then return nil end
@@ -1127,6 +1135,8 @@ function E.bateria.dibujar()
         lg.setFont(F.chica); color(C.tenue); lg.print(c[1], cx, 300)
         lg.setFont(F.normal); color(i == 2 and C.oro or C.crema); lg.print(c[2], cx, 316)
         lg.setFont(F.chica); color(C.tenue); lg.print(recortar(F.chica, c[3], 190), cx, 334); lg.print(recortar(F.chica, c[4], 190), cx, 348)
+        -- un renglón largo (desde la carga): termina bajo su columna y se extiende hacia la izquierda
+        if c.largo then lg.printf(recortar(F.chica, c.largo, cx + 190 - 32), 32, 348, cx + 190 - 32, "right") end
     end
 
     panel(16, 370, 608, 72, perfil and T"TU BATERÍA · todas tus descargas" or T"ÚLTIMA DESCARGA COMPLETA")
