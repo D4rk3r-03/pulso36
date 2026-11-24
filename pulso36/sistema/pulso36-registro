@@ -49,16 +49,41 @@ en_uso() {
   EN_USO="${mejor:-emulationstatio}"
 }
 
-en_uso   # primera vuelta: solo la foto de referencia
+# Wifi, para medir cuánto gasta: «apagado» (sin interfaz o bajada), «encendido» (activa, sin conectar) o
+# «conectado:<dBm>»; y los KB que pasaron por el Wifi (bajada + subida) en ese minuto. Solo /sys y /proc:
+# nmcli puede tardar segundos.
+RED_ANTES=""
+wifi() {
+  local i n f st s b=0
+  WIFI=apagado
+  for i in /sys/class/net/*; do
+    [ -d "$i/wireless" ] || continue
+    n=${i##*/}; f=$(leer "$i/flags"); st=$(leer "$i/operstate")
+    if [ "$st" = up ]; then
+      s=$(awk -v n="$n:" '$1 == n { printf "%d", $4 }' /proc/net/wireless)
+      WIFI="conectado:${s:-?}"
+    elif [ $(( ${f:-0} & 1 )) -eq 1 ] && [ "$WIFI" = apagado ]; then WIFI=encendido
+    fi
+    b=$(( b + $(leer "$i/statistics/rx_bytes" || echo 0) + $(leer "$i/statistics/tx_bytes" || echo 0) ))
+  done
+  if [ -n "$RED_ANTES" ] && [ "$b" -ge "$RED_ANTES" ]; then RED_KB=$(( (b - RED_ANTES) / 1024 )); else RED_KB=""; fi
+  RED_ANTES=$b
+}
+
+en_uso; wifi   # primera vuelta: solo la foto de referencia
+CABECERA="fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso,wifi,red_KB"
 while true; do
   sleep 60
   F="$DIR/registro-$(date +%Y-%m).csv"
-  [ -s "$F" ] || echo "fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso" > "$F"
+  if [ -s "$F" ]; then   # archivo de antes de la columna del Wifi: se completa la cabecera una vez
+    head -1 "$F" | grep -q ',wifi' || sed -i "1s/.*/$CABECERA/" "$F"
+  else echo "$CABECERA" > "$F"; fi
   v=$(( $(leer $B/voltage_now || echo 0) / 1000 ))
   c=$(( $(leer $B/current_now || echo 0) / 1000 ))
   brillo=$(cat /sys/class/backlight/*/brightness 2> /dev/null | head -1)
   cpu=$(cut -d' ' -f1 /proc/loadavg)
   zr=$(awk '$1=="/dev/zram0"{printf "%d", $4/1024}' /proc/swaps)
   en_uso; p=$(printf "%s" "$EN_USO" | tr ',\n' '; ' | cut -c1-60)
-  echo "$(date '+%F %T'),$(leer $B/status),$(leer $B/capacity),$v,$c,$(cargador),${brillo:-},$cpu,${zr:-0},${p:-}" >> "$F"
+  wifi
+  echo "$(date '+%F %T'),$(leer $B/status),$(leer $B/capacity),$v,$c,$(cargador),${brillo:-},$cpu,${zr:-0},${p:-},$WIFI,$RED_KB" >> "$F"
 done

@@ -181,12 +181,15 @@ después de la primera descarga completa Pulso 36 calcula por voltaje y deja de 
 Un archivo CSV por mes (`registro-AAAA-MM.csv`), una fila por minuto:
 
 ```
-fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso
-2026-01-10 18:00:00,Discharging,61,3862,-480,0,40,1.20,0,retroarch:Juego
+fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso,wifi,red_KB
+2026-01-10 18:00:00,Discharging,61,3862,-480,0,40,1.20,0,retroarch:Juego,conectado:-52,14
 ```
 
-`estado` es el del sistema (`Charging`, `Discharging`, `Full`); `proceso` es lo que se estaba usando
-(`retroarch:<rom>`, `port:<carpeta>`, `love:<app>` o el programa que más gastó).
+`estado` es el del sistema (`Charging`, `Discharging`, `Full`; en el RK817 sigue en `Full` un rato después de
+desenchufar: con `cargador` en 0, Pulso 36 lo cuenta como descarga); `proceso` es lo que se estaba usando
+(`retroarch:<rom>`, `port:<carpeta>`, `love:<app>` o el programa que más gastó); `wifi` es `apagado`,
+`encendido` o `conectado:<dBm>` y `red_KB` los KB que pasaron por el Wifi en ese minuto. Los archivos de antes
+no traen esas dos columnas: la cabecera se completa sola.
 
 ## Desarrollo
 

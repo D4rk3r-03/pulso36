@@ -181,12 +181,15 @@ discharge Pulso 36 estimates by voltage and no longer depends on this number.
 One CSV file per month (`registro-YYYY-MM.csv`), one row per minute:
 
 ```
-fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso
-2026-01-10 18:00:00,Discharging,61,3862,-480,0,40,1.20,0,retroarch:Game
+fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso,wifi,red_KB
+2026-01-10 18:00:00,Discharging,61,3862,-480,0,40,1.20,0,retroarch:Game,conectado:-52,14
 ```
 
-`estado` is the system status (`Charging`, `Discharging`, `Full`); `proceso` is what was in use (`retroarch:<rom>`,
-`port:<folder>`, `love:<app>` or the program that used the most CPU).
+`estado` is the system status (`Charging`, `Discharging`, `Full`; the RK817 stays at `Full` for a while after
+unplugging: with `cargador` at 0, Pulso 36 counts it as discharging); `proceso` is what was in use
+(`retroarch:<rom>`, `port:<folder>`, `love:<app>` or the program that used the most CPU); `wifi` is `apagado`
+(off), `encendido` (on, not connected) or `conectado:<dBm>` (connected) and `red_KB` the KB that went through Wi-Fi
+in that minute. Older files lack those two columns: the header is completed automatically.
 
 ## Development
 
