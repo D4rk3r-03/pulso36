@@ -974,38 +974,78 @@ end
 
 -- Batería
 E.bateria = {}
+-- registro de batería: lista de archivos (ordenada) según un patrón del shell
+function listarRegistros(patron)
+    local lista, p = {}, io.popen("ls -1 " .. patron .. " 2>/dev/null")
+    if p then for l in p:lines() do lista[#lista + 1] = l end; p:close() end
+    table.sort(lista)
+    return lista
+end
+-- agrega las filas de un archivo del registro (las ya vistas, por fecha y hora, se saltan)
+function filasDe(archivo, filas, vistas)
+    local f = io.open(archivo, "r")
+    if not f then return end
+    local tope = os.time() + 86400
+    for l in f:lines() do
+        local fecha, estado, pct, mv, ma, carg = l:match("^(%d+%-%d+%-%d+ %d+:%d+:%d+),([^,]+),(%d+),(%d+),(%-?%d+),?(%d*)")
+        if fecha and not vistas[fecha] then
+            vistas[fecha] = true
+            if estado == "Full" and carg == "0" then estado = "Discharging" end   -- el RK817 dice «Full» tras desenchufar
+            local y, mo, d, h, mi, s = fecha:match("(%d+)%-(%d+)%-(%d+) (%d+):(%d+):(%d+)")
+            local t = os.time({year = y, month = mo, day = d, hour = h, min = mi, sec = s})
+            if t > 1577836800 and t < tope then   -- de 2020 en adelante y no en el futuro (reloj sin sincronizar)
+                filas[#filas + 1] = {t = t, estado = estado, pct = tonumber(pct), mv = tonumber(mv), ma = math.abs(tonumber(ma))}
+            end
+        end
+    end
+    f:close()
+end
+-- descargas y cargas (bloques seguidos) a partir de las filas en orden; también la última carga y lo de después
+function armarBloques(filas)
+    local bloques, actual, cargas, actualC = {}, nil, {}, nil
+    local finCarga, filasDesde, mvUltima = nil, {}, nil   -- última fila cargando y las de después («desde la carga»)
+    for _, r in ipairs(filas) do
+        local t, estado = r.t, r.estado
+        if estado == "Charging" or estado == "Full" then finCarga, filasDesde = t, {}
+        elseif finCarga then filasDesde[#filasDesde + 1] = t; mvUltima = r.mv end
+        if estado == "Discharging" then
+            if not actual then actual = {}; bloques[#bloques + 1] = actual end
+            actual[#actual + 1] = {t = t, mv = r.mv, pct = r.pct, ma = r.ma}
+        else if actual then actual.cerrada = true end; actual = nil end
+        if estado == "Charging" or estado == "Full" then
+            if not actualC then actualC = {}; cargas[#cargas + 1] = actualC end
+            actualC[#actualC + 1] = {t = t, mv = r.mv, ma = r.ma}
+        else actualC = nil end
+    end
+    return bloques, cargas, actualC, finCarga, filasDesde, mvUltima
+end
 function leerCurvas()
     -- el registro de la batería (bateria-registro, si estuvo encendido): la descarga completa más nueva.
     -- «Completa» = ya terminó (vino una carga después, o la consola se apagó) y bajó de 3,42 V; así no se toma
     -- la descarga que está en curso. Cada punto guarda los mAh que aún quedaban hasta el apagado (p.resta):
     -- con eso se estima el tiempo por voltaje (2026-11-17: a 3,46 V el medidor decía 21 % y quedaban 113 mAh).
-    local p = io.popen("ls -1 " .. citar(REGISTRO) .. "registro-*.csv 2>/dev/null | tail -1")
-    local archivo = p and p:read("*l")
-    if p then p:close() end
+    local propios = listarRegistros(citar(REGISTRO) .. "registro-*.csv")
+    local archivo = propios[#propios]
     if not archivo then return nil end
-    local f = io.open(archivo, "r")
-    if not f then return nil end
-    local bloques, actual, cargas, actualC = {}, nil, {}, nil
-    local finCarga, filasDesde, mvUltima = nil, {}, nil   -- última fila cargando y las de después («desde la carga»)
-    for l in f:lines() do
-        local fecha, estado, pct, mv, ma, carg = l:match("^(%d+%-%d+%-%d+ %d+:%d+:%d+),([^,]+),(%d+),(%d+),(%-?%d+),?(%d*)")
-        if fecha then
-            if estado == "Full" and carg == "0" then estado = "Discharging" end   -- «Full» sin cargador (ver arriba)
-            local y, mo, d, h, mi, s = fecha:match("(%d+)%-(%d+)%-(%d+) (%d+):(%d+):(%d+)")
-            local t = os.time({year = y, month = mo, day = d, hour = h, min = mi, sec = s})
-            if estado == "Charging" or estado == "Full" then finCarga, filasDesde = t, {}
-            elseif finCarga then filasDesde[#filasDesde + 1] = t; mvUltima = tonumber(mv) end
-            if estado == "Discharging" then
-                if not actual then actual = {}; bloques[#bloques + 1] = actual end
-                actual[#actual + 1] = {t = t, mv = tonumber(mv), pct = tonumber(pct), ma = math.abs(tonumber(ma))}
-            else if actual then actual.cerrada = true end; actual = nil end
-            if estado == "Charging" or estado == "Full" then
-                if not actualC then actualC = {}; cargas[#cargas + 1] = actualC end
-                actualC[#actualC + 1] = {t = t, mv = tonumber(mv), ma = math.abs(tonumber(ma))}
-            else actualC = nil end
-        end
+    -- esta SD (su último archivo): la descarga de referencia, «desde la carga», la carga en curso
+    local filas = {}
+    filasDe(archivo, filas, {})
+    local bloques, cargas, actualC, finCarga, filasDesde, mvUltima = armarBloques(filas)
+    -- todas las SD (los registros de las otras los baja PartiDrive de Drive a registro/otras/<sd>/): el perfil y
+    -- la carga de referencia, porque la batería y el cargador son los mismos. Una fila repetida (misma fecha y hora)
+    -- cuenta una vez; las de un reloj mal puesto se ignoran.
+    local todas, vistas, sds = {}, {}, 1
+    for _, a in ipairs(propios) do filasDe(a, todas, vistas) end
+    local otras = listarRegistros(citar(REGISTRO) .. "otras/*/registro-*.csv")
+    local dirs = {}
+    for _, a in ipairs(otras) do
+        local antes = #todas
+        filasDe(a, todas, vistas)
+        local dir = a:match("otras/([^/]+)/")
+        if dir and #todas > antes and not dirs[dir] then dirs[dir] = true; sds = sds + 1 end
     end
-    f:close()
+    table.sort(todas, function(x, y) return x.t < y.t end)
+    local bloquesT, cargasT = armarBloques(todas)
     -- «desde la carga»: rato encendida desde la última vez que estuvo cargando (las filas son de cada minuto
     -- encendida; los huecos de más de 30 min son ratos apagada)
     D.desdeCarga = nil
@@ -1015,8 +1055,8 @@ function leerCurvas()
         D.desdeCarga = {t = finCarga, on = on / 60, ultima = prev, mv = mvUltima}
     end
     local carga
-    for i = #cargas, 1, -1 do
-        local b, e = cargas[i], nil
+    for i = #cargasT, 1, -1 do
+        local b, e = cargasT[i], nil
         for k = 1, #b do if b[k].mv >= 4140 and b[k].ma < 200 then e = k; break end end
         if e and e >= 20 and b[1].mv <= 3800 then
             local pts = {}
@@ -1037,7 +1077,8 @@ function leerCurvas()
         end
     end
     -- la descarga de referencia (completa y, si hace falta, cosida con otras más altas): ver curva.lua
-    perfil = CURVA.perfil(bloques, os.time())
+    perfil = CURVA.perfil(bloquesT, os.time())
+    if perfil then perfil.sds = sds end
     -- carga en curso (las últimas filas del registro son de carga): lo que quedaba al enchufar, según el perfil y el
     -- voltaje de la última fila descargando, más los mAh que entraron desde entonces. Solo si se enchufó con la
     -- consola encendida y no hubo ratos apagada cargando (lo que entra con la consola apagada no queda registrado).
@@ -1179,7 +1220,8 @@ function E.bateria.dibujar()
         end
         lg.setFont(F.chica); color(C.tenue); lg.print(coma(string.format("%.2f V", mvLlena / 1000)), 26, yv(mvLlena) - 6)
         color(C.alerta, 0.8); lg.print(coma(string.format("%.2f V", mvVacia / 1000)), 26, yv(mvVacia) - 8)
-        local info = T("%d mAh útiles · %d descargas", math.floor(perfil.total + 0.5), perfil.descargas)
+        local info = (perfil.sds or 1) > 1 and T("%d mAh útiles · %d descargas · %d SD", math.floor(perfil.total + 0.5), perfil.descargas, perfil.sds)
+            or T("%d mAh útiles · %d descargas", math.floor(perfil.total + 0.5), perfil.descargas)
         color(C.tenue); lg.print(info, 608 - F.chica:getWidth(info), 378)
     elseif d then
         local x0, y0, w0, h0 = 76, 398, 532, 38     -- a la izquierda, la columna de 4,2 V y 3,4 V
