@@ -5,6 +5,8 @@
 # Con este registro Pulso 36 calcula su propio porcentaje y los tiempos (el medidor del sistema marca de más al final).
 # La columna «proceso» dice qué se estaba usando en ese minuto: el juego de RetroArch, el port, la app LÖVE o, si no,
 # el programa que más procesador gastó.
+# Desde 2026-11-24 también: temperatura y MHz del procesador, MHz de la GPU, memoria disponible; y en
+# <DIR>/eventos.log, al arrancar, si la vez anterior la consola se apagó sin apagado limpio (cuelgue o corte).
 DIR=/roms/ports/pulso36/conf/registro
 [ -r /etc/default/pulso36-registro ] && DIR=$(sed -n 's/^DIR=//p' /etc/default/pulso36-registro | tail -1)
 mkdir -p "$DIR"
@@ -35,7 +37,7 @@ en_uso() {
     c=$(readlink "$p/cwd" 2> /dev/null) || continue
     case "$c" in */ports/PortMaster*) ;; */ports/?*) c=${c##*/ports/}; EN_USO="port:${c%%/*}"; return ;; esac
   done
-  pid=$(pgrep -x retroarch | head -1)
+  pid=$(pgrep -x 'retroarch|retroarch32' | head -1)
   if [ -n "$pid" ]; then   # el último argumento de RetroArch es la ROM
     cmd=$(tr '\0' '\n' < /proc/$pid/cmdline 2> /dev/null | tail -1)
     case "$cmd" in -*|"") EN_USO="retroarch" ;; *) b=${cmd##*/}; EN_USO="retroarch:${b%.*}" ;; esac
@@ -70,13 +72,44 @@ wifi() {
   RED_ANTES=$b
 }
 
+# temperatura (la zona del procesador, si no la primera), MHz del procesador (el más alto de los núcleos) y de la GPU
+TZ=""
+for z in /sys/class/thermal/thermal_zone*; do
+  case "$(leer "$z/type")" in *soc*|*cpu*) TZ=$z/temp; break ;; esac
+  [ -z "$TZ" ] && [ -r "$z/temp" ] && TZ=$z/temp
+done
+GPUF=$(ls -d /sys/class/devfreq/*gpu* 2> /dev/null | head -1)
+sensores() {
+  local t f m=0
+  t=$(leer "$TZ"); TEMP=${t:+$(( t / 1000 ))}
+  for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do
+    t=$(leer "$f"); [ -n "$t" ] && [ "$t" -gt "$m" ] && m=$t
+  done
+  CPU_MHZ=$(( m / 1000 )); [ "$CPU_MHZ" -gt 0 ] || CPU_MHZ=""
+  t=$(leer "$GPUF/cur_freq"); GPU_MHZ=${t:+$(( t / 1000000 ))}
+  MEM=$(awk '$1 == "MemAvailable:" { printf "%d", $2 / 1024 }' /proc/meminfo)
+}
+
+# Cuelgues: mientras corre, <DIR>/sesion.txt dice «encendida»; al apagar limpio (systemd manda SIGTERM) dice «apagada».
+# Si al arrancar sigue «encendida», la consola se colgó o se cortó la corriente: se anota con la última fila del
+# registro (bajo 3,40 V se toma como corte por batería).
+SESION="$DIR/sesion.txt"; EVENTOS="$DIR/eventos.log"
+if [ "$(head -1 "$SESION" 2> /dev/null)" = encendida ]; then
+  U=$(tail -qn 1 $(ls "$DIR"/registro-*.csv 2> /dev/null | tail -1) 2> /dev/null)
+  mv_u=$(printf "%s" "$U" | cut -d, -f4)
+  if [ -n "$mv_u" ] && [ "$mv_u" -lt 3400 ] 2> /dev/null; then tipo="corte por batería"; else tipo="apagado sin aviso (cuelgue o corte)"; fi
+  echo "$(date '+%F %T') arranque tras $tipo; última fila: ${U:-ninguna}" >> "$EVENTOS"
+fi
+echo encendida > "$SESION"
+trap 'echo apagada > "$SESION"; exit 0' TERM INT
+
 en_uso; wifi   # primera vuelta: solo la foto de referencia
-CABECERA="fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso,wifi,red_KB"
+CABECERA="fecha,estado,porcentaje,voltaje_mV,corriente_mA,cargador,brillo,carga_cpu,zram_MB,proceso,wifi,red_KB,temp_C,cpu_MHz,gpu_MHz,mem_disp_MB"
 while true; do
-  sleep 60
+  sleep 60 & wait $!   # con «wait» la señal de apagado se atiende enseguida
   F="$DIR/registro-$(date +%Y-%m).csv"
-  if [ -s "$F" ]; then   # archivo de antes de la columna del Wifi: se completa la cabecera una vez
-    head -1 "$F" | grep -q ',wifi' || sed -i "1s/.*/$CABECERA/" "$F"
+  if [ -s "$F" ]; then   # archivo de antes de las columnas nuevas (van siempre al final): se completa la cabecera
+    [ "$(head -1 "$F")" = "$CABECERA" ] || sed -i "1s/.*/$CABECERA/" "$F"
   else echo "$CABECERA" > "$F"; fi
   v=$(( $(leer $B/voltage_now || echo 0) / 1000 ))
   c=$(( $(leer $B/current_now || echo 0) / 1000 ))
@@ -84,6 +117,6 @@ while true; do
   cpu=$(cut -d' ' -f1 /proc/loadavg)
   zr=$(awk '$1=="/dev/zram0"{printf "%d", $4/1024}' /proc/swaps)
   en_uso; p=$(printf "%s" "$EN_USO" | tr ',\n' '; ' | cut -c1-60)
-  wifi
-  echo "$(date '+%F %T'),$(leer $B/status),$(leer $B/capacity),$v,$c,$(cargador),${brillo:-},$cpu,${zr:-0},${p:-},$WIFI,$RED_KB" >> "$F"
+  wifi; sensores
+  echo "$(date '+%F %T'),$(leer $B/status),$(leer $B/capacity),$v,$c,$(cargador),${brillo:-},$cpu,${zr:-0},${p:-},$WIFI,$RED_KB,$TEMP,$CPU_MHZ,$GPU_MHZ,$MEM" >> "$F"
 done
