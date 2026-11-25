@@ -1375,7 +1375,7 @@ end
 
 -- Memoria y ZRam
 E.memoria = {}
-local TAMANOS = {256, 512, 768}
+local TAMANOS = {256, 512, 768, 1024}   -- 1024 desde 2026-11-25: Añil (mkxp-z) llenaba la de 768
 function E.memoria.dibujar()
     local M = E.memoria
     local z = D.zram
@@ -1432,11 +1432,14 @@ function E.memoria.dibujar()
     if z.servicio == "pulso36" then
         lg.print(T("Al arrancar: %s", z.arranque and T"sí" or T"no"), 32, 382)
         lg.print(T"Tamaño elegido:", 220, 382)
-        for i, t in ipairs(TAMANOS) do
-            local x = 336 + (i - 1) * 74
+        local x = 336
+        for _, t in ipairs(TAMANOS) do
             local el = (z.elegido or 512) == t
-            if el then color(C.marca); lg.rectangle("fill", x - 6, 378, 66, 24, 4, 4) end
-            lg.setFont(el and F.normal or F.chica); color(el and C.crema or C.tenue); lg.print(t .. " MB", x, 382)
+            local f = el and F.normal or F.chica
+            local w = f:getWidth(t .. " MB")
+            if el then color(C.marca); lg.rectangle("fill", x - 6, 378, w + 12, 24, 4, 4) end
+            lg.setFont(f); color(el and C.crema or C.tenue); lg.print(t .. " MB", x, 382)
+            x = x + w + 18
         end
     elseif z.servicio == "sistema" then
         local pie

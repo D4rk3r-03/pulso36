@@ -65,7 +65,7 @@ case "$1" in
           on)  priv systemctl enable $U > /dev/null 2>&1; priv systemctl restart $U && echo "ZRam encendida (también al arrancar)" ;;
           off) priv systemctl disable $U > /dev/null 2>&1; priv systemctl stop $U && echo "ZRam apagada" ;;
           tam)
-            case "$3" in 256|512|768) ;; *) echo "Tamaño no válido"; exit 2;; esac
+            case "$3" in 256|512|768|1024) ;; *) echo "Tamaño no válido"; exit 2;; esac
             echo "TAMANO_MB=$3" | priv tee /etc/default/pulso36-zram > /dev/null || exit 1
             if grep -q zram0 /proc/swaps; then priv systemctl restart $U || exit 1; fi
             echo "ZRam: $3 MB" ;;
